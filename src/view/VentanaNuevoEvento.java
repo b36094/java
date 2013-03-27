@@ -11,42 +11,37 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.SortedSet;
-
-import paa.calendario.IEvento;
-
 import almacen.AlmacenEventos;
 import almacen.Evento;
+import paa.calendario.*;
 
-public class NuevoEvento extends Dialog {
+public class VentanaNuevoEvento extends Dialog {
 
     private static final long serialVersionUID = 1L;
     private static int id = 0;
-    private Panel pnl;
     private Label l1,l2,l3,l4,l5,l6, l7, l8, l9, l10, l11, l12;
     private TextField tNombre, tLugar, tDescr ;
     private Choice hIni,mIni,hFin, mFin;
     private Button bCrear, bCancel;
-    private SimpleDateFormat format;
     private Date d;
-    //private AlmacenEventos al;
+    private AlmacenEventos almacen;
+    private String calSelec;
+    private GoogleCalendar googleCal;
 
-    public NuevoEvento (Frame f, Date d) {
+    public VentanaNuevoEvento (Frame f, Date d, AlmacenEventos almacen, 
+	    GoogleCalendar googleCal, String calSelec) {
+	
 	super(f, "Nuevo Evento", true);
 	setLocationRelativeTo(f);
 	setLayout(new FlowLayout(FlowLayout.LEFT));
-	//GridBagConstraints c = new GridBagConstraints();
-	format = new SimpleDateFormat("HHmm");
+	
+	this.almacen = almacen;
+	this.googleCal = googleCal;
 	this.d = d;
-	//this.al = al;
-	
-	
+	this.calSelec = calSelec;	
 	
 	SimpleDateFormat dFormat = new SimpleDateFormat("dd-MM-yyyy");
 	l1 = new Label("FECHA NUEVO EVENTO        ");
@@ -89,7 +84,7 @@ public class NuevoEvento extends Dialog {
 	bCrear.addActionListener(new CrearListener());
 	
 	bCancel = new Button ("Cancelar");
-	bCancel.addActionListener(new ExitListener());
+	bCancel.addActionListener(new CancelarListener());
 	
 	
 	add(l1); add(l2); add(l3); add(tNombre); add(l4); add(l5);
@@ -97,34 +92,25 @@ public class NuevoEvento extends Dialog {
 	add(l9); add(mFin); add(l10); add(tLugar); add(l11); add(tDescr);
 	add(l12); add(bCrear); add(bCancel);
 	
-	//add(new Label("Esqueleto de la P2 de PAA. Curso 2012-2013"));
 	addWindowListener (new WindowAdapter (){ 
-          public void windowClosing(WindowEvent e) { 
-        	  NuevoEvento.this.dispose(); 
-             } 
-          });
+	    public void windowClosing(WindowEvent e) { 
+		VentanaNuevoEvento.this.dispose(); 
+	    } 
+	});
     }
     
     class CrearListener implements ActionListener{  // Clase interna
 	public void actionPerformed(ActionEvent e){
-	    AlmacenEventos almacen = new AlmacenEventos();
-	    boolean res = almacen.recuperar("almacen.dat");
-	    if(!res){
-		almacen.addCalendario("local");
-	    }
-	    System.out.println(res);
-	    //System.out.println(res);
-	    
-	    Evento ev = new Evento();
+
+	    boolean res = false;
+	    IEvento ev = new Evento();
 	    id = recuperarId("id");
-	    //System.out.println(id);
 	    id++;
 	    ev.setId(Integer.toString(id));
 	    ev.setNombre(tNombre.getText());
 	    ev.setLugar(tLugar.getText());
 	    ev.setDescripcion(tDescr.getText());
-	    
-	    
+	   
 	    Calendar cal = Calendar.getInstance();
 	    cal.setTime(d);
 	    int h = Integer.parseInt(hIni.getSelectedItem());
@@ -134,7 +120,6 @@ public class NuevoEvento extends Dialog {
 	    cal.clear(Calendar.SECOND);
 	    d = cal.getTime();
 	    ev.setFechaInicio(d);
-	    System.out.println(d);
 	    
 	    h = Integer.parseInt(hFin.getSelectedItem());
 	    m = Integer.parseInt(mFin.getSelectedItem());
@@ -142,87 +127,90 @@ public class NuevoEvento extends Dialog {
 	    cal.set(Calendar.MINUTE, m);
 	
 	    d = cal.getTime();
-	    ev.setFechaFin(d);
-	    System.out.println(id);
+	    ev.setFechaFin(d);    
 	    
-	    almacen.addEvento("local", ev);
-	    res= almacen.guardar("almacen.dat");
-	    guardarId("id");
-	    //System.out.println(res);
-	    NuevoEvento.this.dispose();
+	    if(calSelec.equals("google")){
+		try {
+		    googleCal.addEvento(ev);
+		} catch (GoogleCalendarException e1) {
+		    // TODO Auto-generated catch block
+		    e1.printStackTrace();
+		}
+	    }else{
+		res = almacen.addEvento(calSelec, ev);
+		System.out.println(res + calSelec);
+	    }
+	    guardarId("id");	    
+	    VentanaNuevoEvento.this.dispose();
 	}
     }
-    class ExitListener implements ActionListener{ 
+    
+    class CancelarListener implements ActionListener{ 
 	public void actionPerformed(ActionEvent e){
-	    NuevoEvento.this.dispose();
+	    VentanaNuevoEvento.this.dispose();
 		
 	}
     }
     
     public boolean guardarId(String nombreFichero) {
-	
+
 	boolean res = false;
 	ObjectOutputStream salida= null;
-	
+
 	try{
-		salida= new ObjectOutputStream(new FileOutputStream (nombreFichero));
-		salida.writeInt(id);
-		res = true;
+	    salida= new ObjectOutputStream(new FileOutputStream (nombreFichero));
+	    salida.writeInt(id);
+	    res = true;
 	}catch (FileNotFoundException e){
-		res = false;
+	    res = false;
 	}catch (IOException e){
-		res = false;
+	    res = false;
 	}finally{
-		if (salida!=null)
-			try {
-			salida.close();
-			} catch (IOException e) {
-			e.printStackTrace();
-			}
+	    if (salida!=null)
+		try {
+		    salida.close();
+		} catch (IOException e) {
+		    e.printStackTrace();
+		}
 	}
-	
+
 	return res;
     }
     
     public int recuperarId(String nombreFichero) {
-	
-	//boolean res = false;
+
 	int rInt = 0;
 	ObjectInputStream entrada = null;
 	try {
-		entrada = new ObjectInputStream ( new FileInputStream (nombreFichero));
+	    entrada = new ObjectInputStream ( new FileInputStream (nombreFichero));
 	} catch (FileNotFoundException e1) {
-		
+
 	    guardarId(nombreFichero);
-	    
+
 	    try {
 		entrada = new ObjectInputStream ( new FileInputStream (nombreFichero));
 	    } catch (FileNotFoundException e) {
-		// TODO Auto-generated catch block
 		System.out.println("Error1");
 	    } catch (IOException e) {
-		// TODO Auto-generated catch block
 		System.out.println("Error2");
 	    }
-	    
+
 	}catch (IOException e1) {
-		//res = false;
-		System.out.println("Error2");	
+	    System.out.println("Error2");	
 	} 
-	
+
 	try{
-		rInt = entrada.readInt();
+	    rInt = entrada.readInt();
 	} catch (IOException e) {
-		//res = false;
-		e.printStackTrace();
+	    e.printStackTrace();
 	}finally {
-		try {
-			entrada.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	    try {
+		entrada.close();
+	    } catch (IOException e) {
+		e.printStackTrace();
+	    }
 	}
 	return rInt;
-}
+    }
 
 }

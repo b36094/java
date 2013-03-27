@@ -8,11 +8,10 @@ import java.awt.event.*;
 import paa.calendario.IEvento;
 
 import almacen.AlmacenEventos;
+import almacen.Evento;
+
 public class ViewCal extends Panel {
 
-    /**
-     * 
-     */
     private static final long serialVersionUID = 1L;
     private Button[] buttons ;
     private Panel pnl;
@@ -20,22 +19,24 @@ public class ViewCal extends Panel {
     private Calendar cal;
     private AlmacenEventos almacen;
     private Date d;
-    //private SimpleDateFormat f;
+    private ArrayList <IEvento> eventos;
+    private String calSelec;
+    
     
 
-    public ViewCal(Calendar cal) {
+    public ViewCal(Calendar cal, AlmacenEventos almacen, String calSelec) {
 	super.setLayout(new GridLayout(2,0,0,0));
 	pnl = new Panel(new GridLayout(0,7,0,0));
 	lista = new List();
+	lista.addActionListener(new EvListaListener());
 	d = new Date();
 	this.cal = cal;
-	almacen = new AlmacenEventos();
-	//almacen.addCalendario("local");
+	this.almacen = almacen;
+	this.calSelec = calSelec;
+	
 
 	
 	int i;
-	//String enteroString;
-	//cal = Calendar.getInstance();
 	String [] diasSemana = {"L","M","X","J","V","S","D"};
 	buttons = new Button[49];
 	
@@ -48,7 +49,6 @@ public class ViewCal extends Panel {
 	    pnl.add(b);
 	    
 	}
-	//System.out.println(i);
 	int j;
 	for (j =i; j<buttons.length; j++){
 	    Button b = new Button();
@@ -63,8 +63,19 @@ public class ViewCal extends Panel {
 	add(lista);
     }
     
+    class EvListaListener implements ActionListener{
+
+	public void actionPerformed(ActionEvent e) {
+	}
+	
+    }
+    
     public Date getDate(){
 	return d;
+    }
+    
+    public void setCalSelec(String calSelec){
+	this.calSelec = calSelec;
     }
     
     public void pintarMes(Calendar cal){
@@ -95,8 +106,6 @@ public class ViewCal extends Panel {
 	for( j=1;j<diaSem-1;j++){
 	    buttons[j+offset].setEnabled(false);
 	    buttons[j+offset].setLabel("");
-	    
-	    //add(buttons[j+offset]);
 	}
 	
 	offset += j-1; 
@@ -112,7 +121,6 @@ public class ViewCal extends Panel {
 	}
 	
 	offset +=i;
-	//System.out.println(offset+"-" + buttons.length);
 	for(int k=offset;k<buttons.length;k++){
 	    buttons[k].setEnabled(false);
 	    buttons[k].setLabel("");
@@ -122,32 +130,39 @@ public class ViewCal extends Panel {
     class ListarEventos implements ActionListener{  // Clase interna
 	public void actionPerformed(ActionEvent e){
 	    
-	    boolean res = false;
+	    //boolean res = false;
 	    String str = new String(e.getActionCommand());
 	    int dia = Integer.parseInt(str);
 	    cal.set(Calendar.DAY_OF_MONTH, dia);
-	    res = almacen.recuperar("almacen.dat");
-	    if(!res){
-		almacen.addCalendario("local");
-	    }
-	    d = cal.getTime();
-	    //System.out.println(d);
-	   
-	    Set <IEvento> eventos = (Set<IEvento>) almacen.getEventosDia("local",d);
-	    lista.removeAll();
-	    SimpleDateFormat f = new SimpleDateFormat("HH:mm");
+	    mostrarEvDia();
 	    
-	    for(IEvento s: eventos){
-		str = f.format(s.getFechaInicio());
-		str += " " + s.getNombre();
-		lista.add(str);
-		//lista.addItemListener(new EvListener());
-	    }	
 	}
     }
     
-   /* public int getEvSecciondao(){
-	//lista.get
-    }*/
+    public void borrarEvento(){
+	int index = lista.getSelectedIndex();
+	if(index != -1){
+	    ArrayList <IEvento> aEv = new ArrayList<IEvento>(eventos);
+	    almacen.delEvento(calSelec, aEv.get(index));
+	    //almacen.guardar("almacen.dat");
+	    mostrarEvDia();
+	}
+
+    }
+    
+    public void mostrarEvDia(){
+	String str;
+	d = cal.getTime();
+	   
+	eventos = new ArrayList<IEvento>(almacen.getEventosDia(calSelec,d));
+	lista.removeAll();
+	SimpleDateFormat f = new SimpleDateFormat("HH:mm");
+	    
+	for(IEvento s: eventos){
+	    str = f.format(s.getFechaInicio());
+	    str += " " + s.getNombre();
+	    lista.add(str);
+	 }	
+    }
 
 }
